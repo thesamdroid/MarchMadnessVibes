@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, feature/** ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install numpy scipy pandas pytest
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v --tb=short
+
+      - name: Smoke test bracket optimizer
+        run: |
+          python -c "
+from model_core import CORPUS_INJURY_BETA, bayesian_blend, tempered_sig
+from march_madness_2026_v4 import load_data, resolve_bracket, build_chalk, calibrate, FIRST_FOUR_RESULTS
+import numpy as np
+teams, vegas = load_data()
+bracket = resolve_bracket(FIRST_FOUR_RESULTS)
+beta = calibrate(vegas, teams, n_steps=500, verbose=False)
+chalk = build_chalk(beta, bracket, teams, protect=True)
+assert 0 < chalk['jp_r1p'] < 1, 'P(R1) out of range'
+assert chalk['jp_r1r2p'] < chalk['jp_r1p'], 'R1+R2 must be less than R1'
+assert CORPUS_INJURY_BETA == -0.244, 'Injury beta must be locked'
+print(f'P(perfect R1): {chalk["jp_r1p"]*100:.5f}%')
+print(f'P(perfect R1+R2): {chalk["jp_r1r2p"]*100:.6f}%')
+print('All smoke tests passed.')
+"
+
+      - name: Smoke test backtest harness
+        run: |
+          cd backtest && python backtest_harness_v6.py --year 2025 2>&1 | tail -5
