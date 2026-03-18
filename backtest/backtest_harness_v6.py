@@ -16,7 +16,8 @@ TIER 1:
 TIER 2:
   3. Round-specific sigmoid temperature
      T_R1=1.0, T_R2=0.92, T_S16=0.84, T_E8=0.76, T_FF=0.70, T_Champ=0.70
-     Later rounds compress extreme WP — surviving teams are more evenly matched.
+     T<1 amplifies extreme WP in later rounds (same advantage more decisive
+     among elite survivors; betas calibrated on R1 data).
 
   4. Student-t chaos epsilon (df=4) instead of Normal
      Same center and scale, but 2.6x more probability mass in extreme tails.
@@ -69,11 +70,8 @@ def kenpom_mom_interaction(team, teams, momentum_val):
     return kp_strength * mom_strength
 
 # =============================================================================
-# REMAINING UNCHANGED FROM v5: injury, phase momentum, data loading
+# REMAINING UNCHANGED FROM v5: phase momentum, data loading
 # =============================================================================
-
-    return max(min(1.0, sev/2.5), min(1.0, abs(sharp)/2.0))
-    return sev * (1.0 - vegas_coverage(sev, sharp))
 
 def build_tournament_records(results):
     cumulative, snapshot = {}, {}

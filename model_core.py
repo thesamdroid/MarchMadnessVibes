@@ -22,8 +22,10 @@ from scipy.stats import t as student_t
 
 CORPUS_INJURY_BETA = -0.244   # locked from 2021-2024 empirical corpus
 
-# Round-specific sigmoid temperature — compresses extreme WP in later rounds
-# (surviving teams are more evenly matched; same logit advantage → less certainty)
+# Round-specific sigmoid temperature — amplifies extreme WP in later rounds
+# (T<1 divides the logit by a smaller number, sharpening probabilities)
+# Rationale: calibrated betas were fit on R1 data; in later rounds the same
+# KenPom/SOS advantage is genuinely more decisive among surviving elite teams
 ROUND_TEMP = {
     'R1':    1.00,
     'R2':    0.92,
@@ -138,9 +140,10 @@ def bayesian_blend(p_model: float, seed_a, seed_b) -> float:
 
 def tempered_sig(logit: float, rnd: str) -> float:
     """
-    Sigmoid with round-specific temperature compression.
-    Later rounds compress extreme probabilities: same logit → less certainty
-    because surviving teams are more evenly matched.
+    Sigmoid with round-specific temperature scaling.
+    T<1 in later rounds amplifies extreme probabilities: expit(logit/T) is more
+    extreme than expit(logit) for nonzero logit. Rationale: betas calibrated on
+    R1 data; the same rank/SOS advantage is more decisive among elite survivors.
     """
     T = ROUND_TEMP.get(rnd, 1.0)
     return float(expit(logit / T))

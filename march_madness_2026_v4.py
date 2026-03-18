@@ -44,7 +44,7 @@ from model_core import (
     get_seed_prior, bayesian_blend,
     tempered_sig, chaos_eps,
     vegas_coverage, injury_residual,
-    get_champ_flags,
+    get_champ_flags, expit,
 )
 
 np.random.seed(42)
@@ -110,14 +110,6 @@ FF_PAIRS   = [('East','South'),('West','Midwest')]
 REGIONS    = ['East','West','Midwest','South']
 GAME_1V16  = 0
 ROUND_PTS  = [1,2,4,8,16,32]
-
-# =============================================================================
-# v6 CONSTANTS: BAYESIAN PRIORS, TEMPERATURES, LOG NORMS
-# =============================================================================
-
-CORPUS_INJURY_BETA = -0.244
-LOG_NORM_10 = np.log1p(10)
-LOG_NORM_80 = np.log1p(80)
 
 # =============================================================================
 # HELPER FUNCTIONS
