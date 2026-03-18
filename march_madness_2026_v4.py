@@ -34,6 +34,7 @@ Usage:
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from scipy.special import expit
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -44,7 +45,7 @@ from model_core import (
     get_seed_prior, bayesian_blend,
     tempered_sig, chaos_eps,
     vegas_coverage, injury_residual,
-    get_champ_flags, expit,
+    get_champ_flags,
 )
 
 np.random.seed(42)
