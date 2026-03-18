@@ -27,6 +27,5 @@ jobs:
       - name: Smoke test bracket optimizer
         run: python ci_smoke_test.py
 
-      - name: Smoke test backtest harness
-        working-directory: backtest
-        run: python backtest_harness_v6.py --year 2025 2>&1 | tail -8
+      - name: Smoke test backtest harness (2025)
+        run: python backtest/backtest_harness_v6.py --year 2025

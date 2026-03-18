@@ -100,7 +100,8 @@ def phase_momentum(team, rnd, base, rec):
     return (wins/games*10.0) if games>0 else base
 
 def load_year(year):
-    base = Path(f"backtest/data/{year}")
+    _here = Path(__file__).parent
+    base = _here.parent / f"backtest/data/{year}"
     missing = [str(base/f) for f in
                [f"teams_{year}.csv",f"vegas_{year}.csv",f"results_{year}.csv"]
                if not (base/f).exists()]

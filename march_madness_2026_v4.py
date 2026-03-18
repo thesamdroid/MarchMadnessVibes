@@ -133,8 +133,9 @@ def rg(a, b):
 # =============================================================================
 
 def load_data():
-    teams_df = pd.read_csv('teams_2026.csv')
-    vegas_df = pd.read_csv('vegas_lines_2026.csv')
+    _here = Path(__file__).parent
+    teams_df = pd.read_csv(_here / 'teams_2026.csv')
+    vegas_df = pd.read_csv(_here / 'vegas_lines_2026.csv')
     teams = teams_df.set_index('team').to_dict('index')
     vegas = [(r['team_a'],r['team_b'],r['p_a_wins'],r['sharp_move_pts'])
              for _,r in vegas_df.iterrows()]
