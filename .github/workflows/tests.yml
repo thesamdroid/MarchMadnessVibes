@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, "feature/**" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install numpy scipy pandas pytest
+
+      - name: Run pytest suite
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Smoke test bracket optimizer
+        run: python ci_smoke_test.py
+
+      - name: Smoke test backtest harness (2025)
+        run: python backtest/backtest_harness_v6.py --year 2025

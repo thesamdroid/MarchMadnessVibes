@@ -1,0 +1,54 @@
+round,team_a,team_b,winner,seed_a,seed_b
+R1,Florida,Norfolk State,Florida,1,16
+R1,Duke,Mount Saint Mary's,Duke,1,16
+R1,Houston,SIU Edwardsville,Houston,1,16
+R1,Auburn,Alabama State,Auburn,1,16
+R1,Alabama,Robert Morris,Alabama,2,16
+R1,St. John's,Omaha,St. John's,2,16
+R1,Tennessee,Jacksonville State,Tennessee,2,15
+R1,Michigan State,Eastern Washington,Michigan State,2,15
+R1,Texas Tech,UNC Wilmington,Texas Tech,3,14
+R1,Iowa State,Lipscomb,Iowa State,3,14
+R1,Purdue,Saint Francis,Purdue,3,16
+R1,Baylor,Mississippi State,Baylor,3,9
+R1,Texas A&M,Yale,Texas A&M,4,13
+R1,Maryland,Vermont,Maryland,4,15
+R1,Kansas,Akron,Kansas,4,13
+R1,Arizona,High Point,Arizona,4,15
+R1,Michigan,UC San Diego,Michigan,5,12
+R1,Clemson,McNeese,McNeese,5,12
+R1,Memphis,Colorado State,Colorado State,5,12
+R1,Gonzaga,UNC Wilmington,Gonzaga,5,14
+R1,Missouri,Drake,Drake,6,11
+R1,Ole Miss,North Carolina,Ole Miss,6,11
+R1,Marquette,New Mexico,Marquette,7,10
+R1,Arkansas,Oklahoma,Arkansas,10,9
+R1,Louisville,Creighton,Creighton,8,9
+R1,UConn,Bryant,UConn,2,16
+R2,Florida,UConn,Florida,1,2
+R2,Duke,Baylor,Duke,1,3
+R2,Houston,Gonzaga,Houston,1,5
+R2,Auburn,Creighton,Auburn,1,9
+R2,Alabama,Michigan State,Alabama,2,2
+R2,St. John's,Arkansas,Arkansas,2,10
+R2,Iowa State,Ole Miss,Ole Miss,3,6
+R2,Texas Tech,Drake,Texas Tech,3,11
+R2,Michigan,Texas A&M,Michigan,5,4
+R2,Purdue,Marquette,Purdue,3,7
+R2,Maryland,Kansas,Maryland,4,4
+R2,Tennessee,Arizona,Tennessee,2,4
+S16,Florida,Texas Tech,Florida,1,3
+S16,Duke,Alabama,Duke,1,2
+S16,Houston,Purdue,Houston,1,3
+S16,Auburn,Michigan,Auburn,1,5
+S16,Florida,Maryland,Florida,1,4
+S16,Tennessee,Michigan State,Tennessee,2,2
+S16,Arkansas,Ole Miss,Arkansas,10,6
+S16,Iowa State,Kansas,Iowa State,3,4
+E8,Florida,Texas Tech,Florida,1,3
+E8,Duke,Alabama,Duke,1,2
+E8,Houston,Purdue,Houston,1,3
+E8,Auburn,Tennessee,Auburn,1,2
+FF,Florida,Auburn,Florida,1,1
+FF,Houston,Duke,Houston,1,1
+Champ,Florida,Houston,Florida,1,1

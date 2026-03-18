@@ -1,0 +1,69 @@
+team,region,seed,kenpom_rank,seniority,coach_xp,injury_severity,sos_score,momentum,q1_wins,brand_tier,notes,power_cc,mid_cc
+Duke,East,1,1,2.992,6.0,2.0,9.5,8.0,17,3,Foster out (foot fx); Ngongba questionable foot,1.0,0.0
+Ohio State,East,8,35,4.896,5.0,0.0,7.5,3.5,4,2,Senior Thornton 2154 career pts; first tourney in 4yr,0.0,0.0
+TCU,East,9,23,3.59,4.0,0.0,9.0,3.5,6,1,Big 12; KenPom 23 — better than OSU; sharp money toward TCU,0.0,0.0
+St. John's,East,5,21,3.998,8.0,0.0,7.5,6.5,5,2,Big East champ; weak non-conf per committee,1.0,0.0
+N. Iowa,East,12,55,2.72,4.0,0.0,4.0,0.5,1,0,KenPom #25 defense; won 4 in 4 days MVC auto-bid,0.0,1.0
+Kansas,East,4,11,3.4,9.0,0.0,9.5,6.0,8,3,Bill Self; Peterson healthy but drama all season,0.0,0.0
+Cal Baptist,East,13,180,2.72,3.0,0.0,2.0,0.0,0,0,First EVER tournament appearance; WAC auto-bid,0.0,1.0
+Louisville,East,6,45,3.23,4.0,1.0,8.0,4.5,4,1,Brown Jr back (18.2ppg) day-to-day; no tourney win since 2017,0.0,0.0
+S. Florida,East,11,80,2.822,4.0,0.0,5.5,1.0,2,0,11-game win streak entering tourney,0.0,1.0
+Mich. State,East,3,9,5.549,10.0,0.0,9.5,6.5,7,3,Izzo 8 FF; experienced squad Fears+Kohler,0.0,0.0
+ND State,East,14,100,3.808,4.0,0.0,3.0,0.0,0,0,Program record 27 wins; 6 players 9+ ppg; Summit League,0.0,1.0
+UCLA,East,7,25,3.794,5.0,1.0,9.5,5.5,5,2,Bilodeau mild knee strain effectiveness questionable,0.0,0.0
+UCF,East,10,50,3.468,4.0,0.0,6.0,2.5,3,0,17-4 start; only 25 KenPom spots behind UCLA,0.0,0.0
+UConn,East,2,7,5.712,9.0,1.0,8.0,6.5,10,3,Hurley 2x champ; Demay ankle ? Stewart knee out,0.0,0.0
+Furman,East,15,100,3.264,4.0,0.0,3.0,0.0,0,0,SoCon auto-bid,0.0,1.0
+Siena,East,16,190,2.176,3.0,0.0,1.0,0.0,0,0,MAAC auto-bid,0.0,1.0
+Arizona,West,1,3,4.488,7.0,1.0,9.5,8.0,12,2,Lloyd Big12 CoY; Bradley wrist Burries quad soreness,1.0,0.0
+LIU,West,16,239,2.72,4.0,0.0,1.0,0.0,0,0,NEC auto-bid; KenPom 239,0.0,1.0
+Villanova,West,8,33,3.672,6.0,1.5,7.5,4.5,4,2,Willard yr1; Hodge ACL season-ending starter,0.0,0.0
+Utah State,West,9,32,4.189,5.0,0.0,5.0,3.0,1,0,Mountain West; KenPom 32 essentially same as Villanova,0.0,1.0
+Wisconsin,West,5,24,5.331,5.0,0.0,9.5,5.5,5,1,6yr Boyd (FAU FF23); beat Michigan in Ann Arbor,0.0,0.0
+High Point,West,12,80,5.44,4.0,0.0,2.0,0.0,0,0,9 seniors + 2 juniors; Big South 0 Q1 wins,0.0,0.0
+Arkansas,West,4,16,3.4,8.0,0.0,9.5,6.5,6,2,SEC champ; frosh Acuff+Thomas stars; senior frontcourt,1.0,0.0
+Hawaii,West,13,90,2.72,4.0,0.0,4.0,0.0,1,0,Big West auto-bid; 1 Q1 win,0.0,0.0
+BYU,West,6,25,1.938,5.0,2.5,9.0,5.5,4,1,Saunders ACL gone (18ppg 3rd scorer); 7-10 skid after 16-1,0.0,0.0
+Texas,West,11,65,2.822,5.0,0.0,9.0,2.0,5,1,First Four winner (if beats NC State); Big 12,0.0,0.0
+NC State,West,11,70,2.822,5.0,0.0,9.0,2.0,4,1,First Four opponent; Will Wade yr1; only 1 returning player,0.0,0.0
+Gonzaga,West,3,15,6.242,8.0,2.0,6.0,5.5,6,2,Few title game 21; Huff out since Jan (17.8ppg),0.0,1.0
+Kennesaw St.,West,14,106,2.72,3.0,0.0,4.0,0.0,0,0,CUSA; 2nd tourney ever; 83.7ppg offense,0.0,1.0
+Miami FL,West,7,35,3.794,5.0,0.0,7.5,6.0,3,1,Larrañaga; sharp money toward Missouri,0.0,0.0
+Missouri,West,10,51,3.468,5.0,0.0,9.0,4.5,4,1,SEC 4 Q1W; only 16 KenPom spots behind Miami FL,0.0,0.0
+Purdue,West,2,8,7.14,7.0,0.0,9.5,6.5,8,2,Elite senior trio Smith/Loyer/Kaufman-Renn; 17-1 then 6-7,1.0,0.0
+Queens,West,15,165,2.176,3.0,0.0,1.0,0.0,0,0,First EVER tournament; ASUN first year eligible,0.0,1.0
+Michigan,Midwest,1,2,5.236,5.0,0.0,9.5,7.0,10,2,Best Michigan team ever; Lendeborg dominant; Dusty May yr2,0.0,0.0
+UMBC,Midwest,16,85,3.808,4.0,0.0,3.5,0.0,0,0,First Four; 12-win streak 38% 3pt — echoes 2018 team,0.0,0.0
+Howard,Midwest,16,140,3.264,4.0,0.0,2.0,0.5,0,0,First Four opponent vs UMBC,0.0,1.0
+Georgia,Midwest,8,32,3.672,4.0,0.0,9.0,3.5,4,1,89.8ppg top fastbreak; sharp money toward Saint Louis,0.0,0.0
+Saint Louis,Midwest,9,40,3.59,5.0,0.0,6.0,3.0,3,1,A-10; 28-5 24-1 start; top-5 eFG% both ends,0.0,0.0
+Texas Tech,Midwest,5,35,3.998,6.0,3.0,9.0,5.5,5,1,Toppin ACL season-ending (21.8ppg 10.8rpg — star player),0.0,0.0
+Akron,Midwest,12,79,4.352,5.0,0.0,4.0,0.5,1,0,MAC; 29-5 program record; 3 senior guards 37%+ from 3,0.0,1.0
+Alabama,Midwest,4,16,3.4,5.0,0.0,9.0,5.5,5,2,KenPom #68 defense; tinkered lineup; lost Ole Miss SEC tourney,0.0,0.0
+Hofstra,Midwest,13,70,3.808,3.0,0.0,4.0,0.0,1,0,CAA; Cruz Davis 20.2ppg; 11-1 last 12; top-5 opp FG%,0.0,1.0
+Tennessee,Midwest,6,14,4.522,7.0,0.0,9.0,6.0,6,2,First Four feeds this slot (SMU or Miami OH),0.0,0.0
+SMU,Midwest,11,60,2.822,6.0,0.0,7.5,2.0,3,1,First Four; BJ Edwards ankle injury missed 5 games,0.0,0.0
+Miami OH,Midwest,11,93,3.386,6.0,0.0,2.0,0.0,0,1,First Four; 31-0 regular season; 339th SOS 0 Q1 wins,0.0,0.0
+Virginia,Midwest,3,19,4.162,4.0,0.0,9.0,6.5,7,2,Odom yr1; elite defense 46% clip on opponents,0.0,0.0
+Wright State,Midwest,14,95,3.264,4.0,0.0,2.0,0.0,0,0,Horizon League; 0-5 all-time in tournament,0.0,1.0
+Kentucky,Midwest,7,42,2.53,4.0,0.0,9.0,4.5,4,3,7-seed lowest since 2014; no true PG; Pope yr2,0.0,0.0
+Santa Clara,Midwest,10,45,4.046,5.0,0.0,6.0,2.5,2,0,WCC; 9-deep veteran system; Sendek 4-school tournament vet,0.0,0.0
+Iowa State,Midwest,2,6,6.426,7.0,0.0,9.0,6.5,9,1,All 3 top scorers returning; Lipsey 2.2 stl/gm; top-5 defense,0.0,0.0
+Tenn. State,Midwest,15,164,2.176,3.0,0.0,2.0,0.0,0,0,OVC; 3rd ever tournament appearance; 158-spot KenPom gap,0.0,1.0
+Florida,South,1,4,4.488,6.0,0.0,9.0,7.5,7,2,Defending champion; Walter Clayton Jr graduated,0.0,0.0
+Pr. View,South,16,250,2.176,3.0,0.0,1.0,0.0,0,0,First Four; SWAC; 18-17 record hot-streaked thru auto-bid,0.0,1.0
+Lehigh,South,16,170,2.72,3.0,0.0,2.0,0.5,0,0,First Four opponent vs Prairie View,0.0,1.0
+Iowa,South,9,45,4.189,5.0,0.0,9.5,3.5,5,1,Big Ten 5 Q1W; KenPom 45 BETTER than Clemson 70; slowest pace,0.0,0.0
+Clemson,South,8,70,3.06,5.0,2.5,9.0,3.5,4,1,Welling ACL season-ending (10.2ppg 5.4rpg — 2nd scorer/top reb),0.0,0.0
+Vanderbilt,South,5,13,3.332,4.0,0.0,9.0,5.5,5,1,Duke Miles back; Byington yr1 coach; returned to early form,0.0,0.0
+McNeese,South,12,90,3.264,4.0,0.0,3.0,0.0,0,0,Southland; 28-5 3rd straight tourney; 0 Q1 wins; new coach Armstrong yr1,0.0,1.0
+Nebraska,South,4,22,4.76,5.0,0.0,9.5,5.5,9,1,9 Q1W validates seed; 0-8 all-time in NCAA tournament,0.0,0.0
+Troy,South,13,92,2.72,4.0,1.0,4.0,0.0,2,0,Sun Belt; lost center Seng knee 6 games ago; 3-1 vs Q1-2,0.0,1.0
+N. Carolina,South,6,55,3.876,6.0,3.0,9.0,4.5,5,3,Wilson out season (top-5 pick broken thumb); 0-2 without him,0.0,0.0
+VCU,South,11,47,3.386,5.0,0.0,6.0,2.0,2,0,A-10 champ; KenPom 47 BETTER than UNC 55; lost 1 in 2 months,0.0,0.0
+Illinois,South,3,7,4.855,7.0,0.0,9.5,6.5,8,1,Record KenPom offense (best since 2002); 0-4 in overtime,0.0,0.0
+Penn,South,14,80,3.264,4.0,1.0,4.0,0.0,1,0,Ivy League; Roberts concussion questionable; methodical half-court,0.0,1.0
+Saint Mary's,South,7,38,4.427,7.0,0.0,6.0,5.0,1,1,WCC; Bennett veteran; 1-4 Q1 record; beat Vanderbilt same seed last year,0.0,0.0
+Texas A&M,South,10,65,2.89,4.0,0.0,9.0,3.5,3,1,SEC; McMillan yr1; #8 nationally in experience per KenPom,0.0,0.0
+Houston,South,2,5,4.998,8.0,0.0,9.0,7.0,8,2,Sampson title game 25; seniors Sharp+Uzan; frosh Flemings leads,0.0,0.0
+Idaho,South,15,200,3.264,3.0,0.0,3.0,0.0,0,0,Big Sky; first tourney since 1990; 0-3 vs Q2; 0 Q1 wins,0.0,1.0
