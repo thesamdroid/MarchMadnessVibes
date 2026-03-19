@@ -472,6 +472,14 @@ def optimize_region(region, sim, bracket, chalk, teams, n):
                         'e8':rev(reg_champ,3,ROUND_PTS[3])}}
 
 def optimize_ff(sim, region_opts, teams, n):
+    """
+    Build FF bracket picks with strict backwards compatibility:
+    each region's FF pick MUST be that region's regional_champ (E8 winner).
+
+    Pool EV is optimised only for the champion slot. All other FF picks
+    are forced to the E8 winner so the bracket path is internally consistent:
+        R1 chalk → R2 chalk → S16 pool pick → E8 pool pick → FF pick → champion
+    """
     def ff_ev(team, pts):
         sp = sim['ch_counts'].get(team,0)/n if pts==ROUND_PTS[5] else \
              sim['ff_counts'].get(team,0)/n
@@ -480,47 +488,17 @@ def optimize_ff(sim, region_opts, teams, n):
         own   = max(0.01, get_ownership(team,teams)*reach)
         return pool_ev_score(sp,own,pts)
 
-    champ_cands = [t for t,c in sim['ch_counts'].items() if c/n>=0.005]
-    champion = max(champ_cands, key=lambda t: ff_ev(t,ROUND_PTS[5]),
-                   default=list(region_opts.values())[0]['regional_champ'])
+    # Champion must be one of the four regional_champs so the path is valid
+    regional_champs = {r: region_opts[r]['regional_champ'] for r in REGIONS}
+    champion = max(regional_champs.values(),
+                   key=lambda t: ff_ev(t, ROUND_PTS[5]))
 
-    champ_ff_pair=None; champ_ff_region=None
-    for pair in FF_PAIRS:
-        for region in pair:
-            region_teams=set()
-            for a,b in BRACKET[region]:
-                if a: region_teams.add(a)
-                if b: region_teams.add(b)
-            for _,_,ffr,_ in FIRST_FOUR:
-                if ffr==region:
-                    region_teams.update(['UMBC','Howard','NC State','Texas',
-                                        'SMU','Miami OH','Lehigh','Pr. View'])
-            if champion in region_teams and sim['region_counts'][region].get(champion,[0]*4)[3]/n>0.005:
-                champ_ff_pair=pair; champ_ff_region=region; break
-        if champ_ff_pair: break
+    # Identify which region and FF pair the champion belongs to
+    champ_ff_region = next(r for r,t in regional_champs.items() if t==champion)
+    champ_ff_pair   = next(p for p in FF_PAIRS if champ_ff_region in p)
 
-    if not champ_ff_pair: champ_ff_pair=FF_PAIRS[0]; champ_ff_region=FF_PAIRS[0][0]
-
-    ff_picks = {champ_ff_region: champion}
-    other = [r for r in champ_ff_pair if r!=champ_ff_region][0]
-    other_c = [t for t in champ_cands
-               if sim['region_counts'][other].get(t,[0]*4)[3]/n>0.01] or champ_cands
-    ff_picks[other] = max(other_c, key=lambda t: ff_ev(t,ROUND_PTS[4]),
-                          default=region_opts[other]['regional_champ'])
-
-    other_pair = [p for p in FF_PAIRS if p!=champ_ff_pair][0]
-    for region in other_pair:
-        c = [t for t in champ_cands
-             if sim['region_counts'][region].get(t,[0]*4)[3]/n>0.01] or champ_cands
-        ff_picks[region] = max(c, key=lambda t: ff_ev(t,ROUND_PTS[4]),
-                               default=region_opts[region]['regional_champ'])
-
-    seen={}
-    for region,team in list(ff_picks.items()):
-        if team in seen:
-            alts=[t for t in champ_cands if t not in ff_picks.values()]
-            ff_picks[region]=max(alts,key=lambda t:ff_ev(t,ROUND_PTS[4]),default=team)
-        seen[ff_picks[region]]=region
+    # Every FF pick is the regional_champ — no free-roaming pool EV picks
+    ff_picks = {r: regional_champs[r] for r in REGIONS}
 
     return {'champion':champion,'ff_picks':ff_picks,'champ_pair':champ_ff_pair,
             'pool_evs':{'champion':ff_ev(champion,ROUND_PTS[5]),
