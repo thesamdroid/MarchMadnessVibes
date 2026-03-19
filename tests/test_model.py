@@ -2,7 +2,7 @@
 Tests for march_madness_2026_v4.py — bracket optimizer.
 Pure-function logic tested via model_core; these tests cover
 v4-specific: factors(), predict(), calibrate(), build_chalk(),
-annuity_pv(), chaos_eps(), get_ownership(), simulate() smoke.
+annuity_pv(), chaos_eps(), simulate() smoke.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -13,7 +13,7 @@ from model_core import bayesian_blend, tempered_sig, CORPUS_INJURY_BETA, ROUND_T
 from march_madness_2026_v4 import (
     log_norm, log_rank,
     factors, predict, calibrate, build_chalk,
-    annuity_pv, chaos_eps, get_ownership,
+    annuity_pv, chaos_eps,
 )
 
 # ── Stubs ──────────────────────────────────────────────────────────────────
@@ -134,14 +134,6 @@ class TestAnnuity:
     def test_higher_rate_lower_pv(self):
         assert annuity_pv(rate=0.02)['gross'] > annuity_pv(rate=0.08)['gross']
 
-# ── Ownership ──────────────────────────────────────────────────────────────
-
-class TestOwnership:
-    def test_1seed_high(self):   assert get_ownership('Duke',make_teams()) > 0.90
-    def test_16seed_low(self):   assert get_ownership('Siena',make_teams()) < 0.10
-    def test_bounded(self):
-        for t in make_teams(): assert 0 < get_ownership(t,make_teams()) < 1
-
 # ── Integration ────────────────────────────────────────────────────────────
 
 class TestChalkIntegration:
@@ -159,3 +151,71 @@ class TestChalkIntegration:
 
 if __name__ == '__main__':
     pytest.main([__file__,'-v'])
+
+class TestBackwardsCompatibility:
+    """
+    The bracket must form a valid tournament path:
+    R1 pick → R2 pick → S16 pick → E8 pick → FF pick → champion.
+    No team can appear in a later round without being picked in all earlier rounds.
+    """
+    def test_ff_picks_are_e8_winners(self):
+        import os; os.chdir(os.path.dirname(os.path.dirname(__file__)))
+        from march_madness_2026_v4 import (
+            load_data, resolve_bracket, build_chalk, calibrate,
+            simulate, optimize_region, optimize_ff,
+            FIRST_FOUR_RESULTS, REGIONS, N_ITER
+        )
+        teams, vegas = load_data()
+        bracket = resolve_bracket(FIRST_FOUR_RESULTS)
+        beta = calibrate(vegas, teams, n_steps=200, verbose=False)
+        chalk = build_chalk(beta, bracket, teams, protect=True)
+        sim = simulate(beta, bracket, chalk, teams, n=2000, verbose=False)
+        n = sim['n']
+        region_opts = {r: optimize_region(r,sim,bracket,chalk,teams,n) for r in REGIONS}
+        ff_opt = optimize_ff(sim, region_opts, teams, n)
+
+        for region in REGIONS:
+            e8_winner = region_opts[region]['regional_champ']
+            ff_pick   = ff_opt['ff_picks'][region]
+            assert ff_pick == e8_winner, (
+                f"{region}: FF pick '{ff_pick}' must equal E8 winner '{e8_winner}'"
+            )
+
+    def test_champion_is_a_regional_champ(self):
+        import os; os.chdir(os.path.dirname(os.path.dirname(__file__)))
+        from march_madness_2026_v4 import (
+            load_data, resolve_bracket, build_chalk, calibrate,
+            simulate, optimize_region, optimize_ff,
+            FIRST_FOUR_RESULTS, REGIONS
+        )
+        teams, vegas = load_data()
+        bracket = resolve_bracket(FIRST_FOUR_RESULTS)
+        beta = calibrate(vegas, teams, n_steps=200, verbose=False)
+        chalk = build_chalk(beta, bracket, teams, protect=True)
+        sim = simulate(beta, bracket, chalk, teams, n=2000, verbose=False)
+        n = sim['n']
+        region_opts = {r: optimize_region(r,sim,bracket,chalk,teams,n) for r in REGIONS}
+        ff_opt = optimize_ff(sim, region_opts, teams, n)
+
+        regional_champs = {region_opts[r]['regional_champ'] for r in REGIONS}
+        assert ff_opt['champion'] in regional_champs, (
+            f"Champion '{ff_opt['champion']}' must be one of the regional champs: {regional_champs}"
+        )
+
+    def test_r2_picks_are_r1_winners(self):
+        import os; os.chdir(os.path.dirname(os.path.dirname(__file__)))
+        from march_madness_2026_v4 import (
+            load_data, resolve_bracket, build_chalk, calibrate,
+            FIRST_FOUR_RESULTS, REGIONS
+        )
+        teams, vegas = load_data()
+        bracket = resolve_bracket(FIRST_FOUR_RESULTS)
+        beta = calibrate(vegas, teams, n_steps=200, verbose=False)
+        chalk = build_chalk(beta, bracket, teams, protect=True)
+
+        for region in REGIONS:
+            r1_picks = set(chalk[region]['r1'])
+            for r2_pick in chalk[region]['r2']:
+                assert r2_pick in r1_picks, (
+                    f"{region}: R2 pick '{r2_pick}' not in R1 winners {r1_picks}"
+                )
