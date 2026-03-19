@@ -423,86 +423,90 @@ def simulate(beta, bracket, chalk, teams, n=N_ITER,
 # FIVE-BRACKET OPTIMIZER (unchanged logic, uses updated predict())
 # =============================================================================
 
-def pool_ev_score(sim_p, ownership, pts, agg=CONTRARIAN):
-    return sim_p * pts * (0.30/max(0.01,ownership))**agg
-
 def optimize_region(region, sim, bracket, chalk, teams, n):
-    rc = sim['region_counts'][region]
-    r2 = chalk[region]['r2']
+    """
+    Pure accuracy mode: pick the team with the highest Monte Carlo
+    reach-probability at each round. No ownership or pool-EV weighting.
 
-    def rev(team, rnd, pts):
-        sp = rc.get(team,[0]*4)[rnd]/n
-        if sp<0.001: return 0.0
-        reach = rc.get(team,[0]*4)[max(0,rnd-1)]/n if rnd>0 else 1.0
-        own   = max(0.01, get_ownership(team,teams)*reach)
-        return pool_ev_score(sp,own,pts)
+    Backwards compatibility enforced:
+      - regional_champ  = highest E8 sim probability
+      - s16_top/s16_bot = highest S16 sim probability within each pod,
+        constrained so the regional_champ is always in their own pod
+    """
+    rc  = sim['region_counts'][region]
+    r2  = chalk[region]['r2']
+
+    def sim_p(team, rnd):
+        return rc.get(team, [0]*4)[rnd] / n
 
     def reachable(rnd, min_p=0.005):
-        return [t for t,c in rc.items() if c[rnd]/n>=min_p]
+        return [t for t,c in rc.items() if c[rnd]/n >= min_p]
 
-    champ_candidates = reachable(3)
-    reg_champ = max(champ_candidates, key=lambda t: rev(t,3,ROUND_PTS[3]),
-                    default=r2[0])
+    # Regional champ = most likely E8 survivor
+    e8_cands  = reachable(3) or list(r2)
+    reg_champ = max(e8_cands, key=lambda t: sim_p(t, 3))
 
+    # Determine which pod (top=slots 0-3, bot=slots 4-7) the champ lives in
     top_r1 = set(chalk[region]['r1'][:4])
     bot_r1 = set(chalk[region]['r1'][4:])
 
-    if reg_champ in top_r1: pod='top'
-    elif reg_champ in bot_r1: pod='bot'
+    if reg_champ in top_r1:   pod = 'top'
+    elif reg_champ in bot_r1: pod = 'bot'
     else:
-        p_top = sum(predict(np.zeros(10),reg_champ,t,teams,rnd='S16')
-                    for t in list(top_r1)[:2]) / 2
-        p_bot = sum(predict(np.zeros(10),reg_champ,t,teams,rnd='S16')
-                    for t in list(bot_r1)[:2]) / 2
-        pod = 'top' if p_top>=p_bot else 'bot'
+        # Fallback: use R2 chalk assignment
+        pod = 'top' if r2[0] == reg_champ or r2[1] == reg_champ else 'bot'
 
-    if pod=='top':
+    s16_cands = reachable(2) or list(r2)
+
+    if pod == 'top':
         s16_top = reg_champ
-        bot_c   = [t for t in reachable(2) if t in bot_r1] or list(bot_r1)
-        s16_bot = max(bot_c, key=lambda t: rev(t,2,ROUND_PTS[2]), default=r2[2])
+        bot_c   = [t for t in s16_cands if t in bot_r1] or list(bot_r1)
+        s16_bot = max(bot_c, key=lambda t: sim_p(t, 2))
     else:
         s16_bot = reg_champ
-        top_c   = [t for t in reachable(2) if t in top_r1] or list(top_r1)
-        s16_top = max(top_c, key=lambda t: rev(t,2,ROUND_PTS[2]), default=r2[0])
+        top_c   = [t for t in s16_cands if t in top_r1] or list(top_r1)
+        s16_top = max(top_c, key=lambda t: sim_p(t, 2))
 
-    return {'regional_champ':reg_champ,'s16_top':s16_top,'s16_bot':s16_bot,
-            'pod_of_champ':pod,
-            'pool_evs':{'s16_top':rev(s16_top,2,ROUND_PTS[2]),
-                        's16_bot':rev(s16_bot,2,ROUND_PTS[2]),
-                        'e8':rev(reg_champ,3,ROUND_PTS[3])}}
+    return {'regional_champ': reg_champ,
+            's16_top': s16_top,
+            's16_bot': s16_bot,
+            'pod_of_champ': pod,
+            'sim_pcts': {
+                's16_top': sim_p(s16_top, 2),
+                's16_bot': sim_p(s16_bot, 2),
+                'e8':      sim_p(reg_champ, 3),
+            }}
+
 
 def optimize_ff(sim, region_opts, teams, n):
     """
-    Build FF bracket picks with strict backwards compatibility:
-    each region's FF pick MUST be that region's regional_champ (E8 winner).
+    Pure accuracy mode: pick the most likely team to reach each round.
 
-    Pool EV is optimised only for the champion slot. All other FF picks
-    are forced to the E8 winner so the bracket path is internally consistent:
-        R1 chalk → R2 chalk → S16 pool pick → E8 pool pick → FF pick → champion
+    Backwards compatibility enforced:
+      - Each region's FF pick = that region's regional_champ (E8 winner)
+      - Champion = the regional_champ with the highest championship sim
     """
-    def ff_ev(team, pts):
-        sp = sim['ch_counts'].get(team,0)/n if pts==ROUND_PTS[5] else \
-             sim['ff_counts'].get(team,0)/n
-        if sp<0.001: return 0.0
-        reach = sim['ff_counts'].get(team,0)/n
-        own   = max(0.01, get_ownership(team,teams)*reach)
-        return pool_ev_score(sp,own,pts)
+    def ch_sim(team):
+        return sim['ch_counts'].get(team, 0) / n
 
-    # Champion must be one of the four regional_champs so the path is valid
     regional_champs = {r: region_opts[r]['regional_champ'] for r in REGIONS}
-    champion = max(regional_champs.values(),
-                   key=lambda t: ff_ev(t, ROUND_PTS[5]))
 
-    # Identify which region and FF pair the champion belongs to
-    champ_ff_region = next(r for r,t in regional_champs.items() if t==champion)
+    # Champion = most likely of the four regional winners to win it all
+    champion = max(regional_champs.values(), key=ch_sim)
+
+    champ_ff_region = next(r for r, t in regional_champs.items() if t == champion)
     champ_ff_pair   = next(p for p in FF_PAIRS if champ_ff_region in p)
 
-    # Every FF pick is the regional_champ — no free-roaming pool EV picks
+    # Every FF slot is the regional champ — path is fully consistent
     ff_picks = {r: regional_champs[r] for r in REGIONS}
 
-    return {'champion':champion,'ff_picks':ff_picks,'champ_pair':champ_ff_pair,
-            'pool_evs':{'champion':ff_ev(champion,ROUND_PTS[5]),
-                        **{r:ff_ev(t,ROUND_PTS[4]) for r,t in ff_picks.items()}}}
+    return {'champion': champion,
+            'ff_picks': ff_picks,
+            'champ_pair': champ_ff_pair,
+            'sim_pcts': {
+                'champion': ch_sim(champion),
+                **{r: sim['ff_counts'].get(t, 0)/n for r, t in ff_picks.items()}
+            }}
 
 # =============================================================================
 # PRINTING
@@ -545,16 +549,15 @@ def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect):
         for i,(pick,wp) in enumerate(zip(c['r2'],c['r2_wp'])):
             print(f"  R2: {pick:<24} {wp*100:.1f}%")
 
-    sep("FIVE-BRACKET POOL PICKS — S16 ONWARD")
+    sep("ACCURACY PICKS — S16 ONWARD")
     print(f"  Champion: {ff_opt['champion']}  "
-          f"(sim={sim['ch_counts'].get(ff_opt['champion'],0)/n*100:.1f}%  "
-          f"pool_ev={ff_opt['pool_evs']['champion']:.2f})\n")
+          f"(sim={sim['ch_counts'].get(ff_opt['champion'],0)/n*100:.1f}%)\n")
     for region in REGIONS:
         opt = region_opts[region]; rc = sim['region_counts'][region]
-        champ = opt['regional_champ']; pod = opt['pod_of_champ']
+        champ = opt['regional_champ']
         top = opt['s16_top']; bot = opt['s16_bot']
         print(f"  [{region[:1]}] {region:<10} Regional champ: {champ:<20} "
-              f"E8 sim={rc.get(champ,[0]*4)[3]/n*100:.1f}%  ev={opt['pool_evs']['e8']:.2f}")
+              f"E8 sim={rc.get(champ,[0]*4)[3]/n*100:.1f}%")
         for label, pick, rnd_idx in [('S16 top',top,2),('S16 bot',bot,2)]:
             sp = rc.get(pick,[0]*4)[rnd_idx]/n
             flag = ' ← champ path' if pick==champ else ''
@@ -573,7 +576,7 @@ def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect):
     print(f"\n  CHAMPION: {ch}  ({chsp*100:.2f}% sim)")
 
     sep("COMPLETE BRACKET — ALL ROUNDS")
-    print("  R1+R2: chalk  |  S16+: pool-optimal\n")
+    print("  R1+R2: chalk  |  S16+: highest sim probability\n")
     for region in REGIONS:
         opt=region_opts[region]; c=chalk[region]
         champ=opt['regional_champ']; rc=sim['region_counts'][region]
