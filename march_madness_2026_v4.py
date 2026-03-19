@@ -1,34 +1,33 @@
 """
 March Madness 2026 — Bracket Optimizer v4
 ==========================================
-Incorporates all validated backtesting improvements (v6 harness features):
+Model:
+    9-factor logistic regression calibrated on Vegas R1 lines.
+    Shared utilities (Bayesian prior, sigmoid temperature, chaos epsilon,
+    injury residual, conf-champ flags) live in model_core.py.
 
-  TIER 1:
-    • Bayesian seed-matchup prior blend on R1 predictions
-    • Power vs mid-major conference champion split (two separate features)
+    Key features:
+      • Log-compressed KenPom, CoachXP, SOS, Q1 momentum
+      • Bayesian seed-matchup prior blend (R1 only)
+      • Power vs mid-major conference champion split
+      • Round-specific sigmoid temperature (T: 1.0 R1 → 0.70 FF)
+      • Student-t chaos epsilon df=4 (heavy tails)
+      • KenPom × Q1_Momentum interaction term
+      • Injury residual beta LOCKED at -0.244 (empirical corpus)
+      • Portal-corrected seniority (in CSV)
 
-  TIER 2:
-    • Round-specific sigmoid temperature (T: 1.0→0.70 across rounds)
-    • Student-t chaos epsilon df=4 (heavier tails for chaos year simulation)
-    • KenPom × Q1_Momentum interaction term
+Bracket strategy:
+    R1+R2  : chalk picks (maximise P(perfect R1) and P(perfect R1+R2))
+    S16+   : game-by-game model WP with 70% upset threshold in R1
+             (any R1 game where favourite raw WP < 70% → pick the upset,
+              except 1v16 which is always protected)
+    FF+    : game-by-game model WP, no threshold
 
-  FACTOR UPDATES:
-    • KenPom delta: log-compressed (already v3)
-    • CoachXP: linear → log-compressed
-    • SOS: linear → log-compressed
-    • Q1 momentum: linear → log-compressed
-    • Injury residual beta: LOCKED at -0.244 (empirical corpus, not calibrated)
-    • Seniority: portal-corrected (in CSV, used linearly)
-
-  FIVE-BRACKET ARCHITECTURE UNCHANGED:
-    4 independent regional brackets + 1 Final Four bracket
-    Champion → backwards-compatible path selection
+    Backwards compatibility enforced: every FF pick = that region's E8 winner,
+    champion = one of the four regional champions.
 
 Usage:
     python march_madness_2026_v4.py
-
-    Update FIRST_FOUR_RESULTS after Wednesday night games,
-    then rerun before Thursday noon ET deadline.
 """
 
 import numpy as np
@@ -63,14 +62,11 @@ FIRST_FOUR_RESULTS = {
 
 PRIZE_R1R2 = 19_800_000
 PRIZE_R1   =  1_000_000
-PRIZE_POOL =    250_000
-POOL_SIZE  =    100_000
 PROTECT_1V16 = True
 N_ITER     = 100_000
 GD_STEPS   =  80_000
 AGE        = 37
 DISC_RATE  = 0.04
-CONTRARIAN = 1.0
 
 # =============================================================================
 # BRACKET STRUCTURE
@@ -201,13 +197,6 @@ def predict(beta, a, b, teams, rnd='R1',
 def get_k(a, b, teams):
     q = teams.get(a,{}).get('q1_wins',0) + teams.get(b,{}).get('q1_wins',0)
     return float(np.clip(8 + q*1.3, 6, 40))
-
-def get_ownership(team, teams):
-    own = {1:.96,2:.87,3:.77,4:.67,5:.58,6:.52,7:.50,
-           8:.51,9:.49,10:.40,11:.43,12:.34,13:.24,14:.17,15:.08,16:.02}
-    brand = [0.0,0.04,0.09,0.15]
-    d = teams.get(team,{})
-    return float(np.clip(own.get(d.get('seed',8),0.5) + brand[d.get('brand_tier',0)], 0.01, 0.97))
 
 # =============================================================================
 # CALIBRATION
@@ -423,90 +412,142 @@ def simulate(beta, bracket, chalk, teams, n=N_ITER,
 # FIVE-BRACKET OPTIMIZER (unchanged logic, uses updated predict())
 # =============================================================================
 
-def optimize_region(region, sim, bracket, chalk, teams, n):
+UPSET_THRESHOLD = 0.70   # R1 only: pick upset if favourite raw model WP < this
+
+
+def play_game(beta, a, b, teams, rnd, game_index=None):
     """
-    Pure accuracy mode: pick the team with the highest Monte Carlo
-    reach-probability at each round. No ownership or pool-EV weighting.
+    Pick winner of a single matchup.
 
-    Backwards compatibility enforced:
-      - regional_champ  = highest E8 sim probability
-      - s16_top/s16_bot = highest S16 sim probability within each pod,
-        constrained so the regional_champ is always in their own pod
+    R1 logic (game_index provided):
+      - index 0 is the 1v16 protected game → always chalk
+      - otherwise: if favourite's RAW model WP < UPSET_THRESHOLD, pick the upset
+        Raw WP used (pre-Bayesian-blend) so the model's genuine team-quality
+        opinions drive upset picks rather than being smoothed toward seed history.
+
+    R2+ logic: straight model WP, no threshold.
     """
-    rc  = sim['region_counts'][region]
-    r2  = chalk[region]['r2']
+    if not a or not b:
+        return (a or b), None, 1.0
+    ta = teams.get(a, {}); tb = teams.get(b, {})
+    sa = ta.get('seed'); sb = tb.get('seed')
 
-    def sim_p(team, rnd):
-        return rc.get(team, [0]*4)[rnd] / n
+    if rnd == 'R1' and game_index is not None:
+        fav = a if (sa or 8) <= (sb or 8) else b
+        dog = b if fav == a else a
+        sf  = min(sa or 8, sb or 8)
 
-    def reachable(rnd, min_p=0.005):
-        return [t for t,c in rc.items() if c[rnd]/n >= min_p]
+        # Raw logit (no Bayesian blend)
+        f = factors(a, b, teams)
+        raw_wp_a = float(expit(beta[0] + np.dot(beta[1:], f)))
+        raw_fav  = raw_wp_a if (sa or 8) <= (sb or 8) else 1.0 - raw_wp_a
 
-    # Regional champ = most likely E8 survivor
-    e8_cands  = reachable(3) or list(r2)
-    reg_champ = max(e8_cands, key=lambda t: sim_p(t, 3))
+        protected = (game_index == 0)   # 1v16 always chalk
+        if protected or raw_fav >= UPSET_THRESHOLD:
+            return fav, dog, raw_fav
+        else:
+            return dog, fav, 1.0 - raw_fav   # upset
 
-    # Determine which pod (top=slots 0-3, bot=slots 4-7) the champ lives in
-    top_r1 = set(chalk[region]['r1'][:4])
-    bot_r1 = set(chalk[region]['r1'][4:])
+    # R2 and beyond: straight blended model WP
+    wp = predict(beta, a, b, teams, rnd=rnd, seed_a=sa, seed_b=sb)
+    return (a, b, wp) if wp >= 0.5 else (b, a, 1.0 - wp)
 
-    if reg_champ in top_r1:   pod = 'top'
-    elif reg_champ in bot_r1: pod = 'bot'
-    else:
-        # Fallback: use R2 chalk assignment
-        pod = 'top' if r2[0] == reg_champ or r2[1] == reg_champ else 'bot'
 
-    s16_cands = reachable(2) or list(r2)
+def optimize_region(region, sim, bracket, chalk, teams, n, beta=None):
+    """
+    Game-by-game bracket solver: play each matchup with per-game model WP.
+    This surfaces genuine upsets the model believes in rather than always
+    following cumulative survival probabilities that favour 1-seeds.
 
-    if pod == 'top':
-        s16_top = reg_champ
-        bot_c   = [t for t in s16_cands if t in bot_r1] or list(bot_r1)
-        s16_bot = max(bot_c, key=lambda t: sim_p(t, 2))
-    else:
-        s16_bot = reg_champ
-        top_c   = [t for t in s16_cands if t in top_r1] or list(top_r1)
-        s16_top = max(top_c, key=lambda t: sim_p(t, 2))
+    Returns the same dict shape as before for backwards compatibility.
+    """
+    if beta is None:
+        # Fallback: use chalk R2 winners as seeds for S16+
+        r2 = chalk[region]['r2']
+        return {'regional_champ': r2[0], 's16_top': r2[0], 's16_bot': r2[2],
+                'pod_of_champ': 'top',
+                'sim_pcts': {'s16_top': 0.5, 's16_bot': 0.5, 'e8': 0.5}}
 
-    return {'regional_champ': reg_champ,
-            's16_top': s16_top,
-            's16_bot': s16_bot,
+    # R1 games: pass game_index so 1v16 is protected, others use upset threshold
+    r1_winners = []
+    r1_wps     = []
+    r1_prots   = []
+    for gi, (a, b) in enumerate(bracket[region]):
+        a2, b2 = (a or b), (b or a)
+        w, l, wp = play_game(beta, a2, b2, teams, 'R1', game_index=gi)
+        r1_winners.append(w)
+        r1_wps.append(wp)
+        r1_prots.append(gi == 0)
+
+    # R2: game-by-game, no threshold
+    r2w = []
+    r2_wps = []
+    for i in range(0, 8, 2):
+        w, l, wp = play_game(beta, r1_winners[i], r1_winners[i+1], teams, 'R2')
+        r2w.append(w); r2_wps.append(wp)
+
+    # S16: pod0 vs pod1, pod2 vs pod3
+    s16_w0, s16_l0, s16_wp0 = play_game(beta, r2w[0], r2w[1], teams, 'S16')
+    s16_w1, s16_l1, s16_wp1 = play_game(beta, r2w[2], r2w[3], teams, 'S16')
+
+    # E8
+    e8_w, e8_l, e8_wp = play_game(beta, s16_w0, s16_w1, teams, 'E8')
+
+    # Determine which S16 pod the regional champ came from
+    pod = 'top' if e8_w == s16_w0 else 'bot'
+
+    rc = sim['region_counts'][region]
+    def sp(t, rnd): return rc.get(t, [0]*4)[rnd] / n
+
+    return {'regional_champ': e8_w,
+            's16_top': s16_w0,
+            's16_bot': s16_w1,
             'pod_of_champ': pod,
-            'sim_pcts': {
-                's16_top': sim_p(s16_top, 2),
-                's16_bot': sim_p(s16_bot, 2),
-                'e8':      sim_p(reg_champ, 3),
-            }}
+            'r1_winners': r1_winners,
+            'r1_wps':     r1_wps,
+            'r1_prots':   r1_prots,
+            'r2_winners': r2w,
+            'r2_wps':     r2_wps,
+            'game_wps': {'s16_top': s16_wp0, 's16_bot': s16_wp1, 'e8': e8_wp},
+            'sim_pcts': {'s16_top': sp(s16_w0, 2),
+                         's16_bot': sp(s16_w1, 2),
+                         'e8':      sp(e8_w, 3)}}
 
 
-def optimize_ff(sim, region_opts, teams, n):
+def optimize_ff(sim, region_opts, teams, n, beta=None):
     """
-    Pure accuracy mode: pick the most likely team to reach each round.
-
-    Backwards compatibility enforced:
-      - Each region's FF pick = that region's regional_champ (E8 winner)
-      - Champion = the regional_champ with the highest championship sim
+    Game-by-game Final Four: play each semifinal and the championship
+    using per-game model WP. Backwards compatibility enforced:
+    each region's FF pick = that region's regional_champ.
     """
     def ch_sim(team):
         return sim['ch_counts'].get(team, 0) / n
 
     regional_champs = {r: region_opts[r]['regional_champ'] for r in REGIONS}
+    ff_picks = {r: regional_champs[r] for r in REGIONS}
 
-    # Champion = most likely of the four regional winners to win it all
-    champion = max(regional_champs.values(), key=ch_sim)
+    if beta is not None:
+        # Play out FF semis game-by-game
+        semi_winners = []
+        for pair in FF_PAIRS:
+            r1, r2 = pair
+            t1, t2 = regional_champs[r1], regional_champs[r2]
+            w, l, wp = play_game(beta, t1, t2, teams, 'FF')
+            semi_winners.append((w, wp))
+        champion, _, champ_wp = play_game(
+            beta, semi_winners[0][0], semi_winners[1][0], teams, 'Champ')
+    else:
+        champion = max(regional_champs.values(), key=ch_sim)
 
     champ_ff_region = next(r for r, t in regional_champs.items() if t == champion)
     champ_ff_pair   = next(p for p in FF_PAIRS if champ_ff_region in p)
 
-    # Every FF slot is the regional champ — path is fully consistent
-    ff_picks = {r: regional_champs[r] for r in REGIONS}
-
     return {'champion': champion,
             'ff_picks': ff_picks,
             'champ_pair': champ_ff_pair,
-            'sim_pcts': {
-                'champion': ch_sim(champion),
-                **{r: sim['ff_counts'].get(t, 0)/n for r, t in ff_picks.items()}
-            }}
+            'sim_pcts': {'champion': ch_sim(champion),
+                         **{r: sim['ff_counts'].get(t, 0)/n
+                            for r, t in ff_picks.items()}}}
 
 # =============================================================================
 # PRINTING
@@ -518,13 +559,13 @@ def sep(t=''):
     if t: print(f"  {t}")
     print(f"{'='*68}")
 
-def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect):
+def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect, teams=None):
     n = sim['n']
     sep("EXPECTED VALUE ANALYSIS")
     pr1p = chalk['jp_r1p']; pr12p = chalk['jp_r1r2p']
     ev1  = pr12p * ann['gross']
     ev2  = (pr1p - pr12p) * PRIZE_R1
-    ev3  = PRIZE_POOL / POOL_SIZE
+    ev3  = 250_000 / 100_000  # pool: $250K prize / ~100K entries
     print(f"\n  Annuity PV: ${ann['gross']:>14,.0f}  (net 42%: ${ann['net']:>12,.0f})")
     print(f"  P(perfect R1)    with protection: {pr1p*100:.5f}%")
     print(f"  P(perfect R1+R2) with protection: {pr12p*100:.6f}%")
@@ -536,7 +577,7 @@ def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect):
     print(f"  {'Pool ($250K / 100K entries)':<34} {'~0.001%':>10}  ${ev3:>8,.0f}")
     print(f"  Total EV: ${ev1+ev2+ev3:,.0f}")
 
-    sep("CHALK PICKS — R1 + R2")
+    sep("CHALK PICKS — R1 + R2  (maximise P(perfect R1) and P(R1+R2))")
     print("  [P]=1v16 protected  | BYU/Tennessee/Florida R1 opponent TBD tonight")
     for region in REGIONS:
         c = chalk[region]
@@ -549,19 +590,24 @@ def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect):
         for i,(pick,wp) in enumerate(zip(c['r2'],c['r2_wp'])):
             print(f"  R2: {pick:<24} {wp*100:.1f}%")
 
-    sep("ACCURACY PICKS — S16 ONWARD")
+    sep("BRACKET PICKS — S16 ONWARD  (per-game model WP)")
     print(f"  Champion: {ff_opt['champion']}  "
-          f"(sim={sim['ch_counts'].get(ff_opt['champion'],0)/n*100:.1f}%)\n")
+          f"(champ sim={sim['ch_counts'].get(ff_opt['champion'],0)/n*100:.1f}%)\n")
     for region in REGIONS:
-        opt = region_opts[region]; rc = sim['region_counts'][region]
+        opt  = region_opts[region]
         champ = opt['regional_champ']
-        top = opt['s16_top']; bot = opt['s16_bot']
+        top   = opt['s16_top']; bot = opt['s16_bot']
+        wps   = opt.get('game_wps', {})
+        sp    = opt.get('sim_pcts', {})
         print(f"  [{region[:1]}] {region:<10} Regional champ: {champ:<20} "
-              f"E8 sim={rc.get(champ,[0]*4)[3]/n*100:.1f}%")
-        for label, pick, rnd_idx in [('S16 top',top,2),('S16 bot',bot,2)]:
-            sp = rc.get(pick,[0]*4)[rnd_idx]/n
-            flag = ' ← champ path' if pick==champ else ''
-            print(f"       {label}: {pick:<20} sim={sp*100:.1f}%{flag}")
+              f"E8 game={wps.get('e8',0)*100:.0f}%  (sim={sp.get('e8',0)*100:.0f}%)")
+        for label, pick, wk, sk in [
+            ('S16 top', top, 's16_top', 's16_top'),
+            ('S16 bot', bot, 's16_bot', 's16_bot'),
+        ]:
+            flag = ' ← champ path' if pick == champ else ''
+            print(f"       {label}: {pick:<20} game={wps.get(wk,0)*100:.0f}%  "
+                  f"sim={sp.get(sk,0)*100:.0f}%{flag}")
 
     sep("FINAL FOUR BRACKET")
     ff = ff_opt['ff_picks']; ch = ff_opt['champion']
@@ -575,29 +621,47 @@ def print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, protect):
     chsp = sim['ch_counts'].get(ch,0)/n
     print(f"\n  CHAMPION: {ch}  ({chsp*100:.2f}% sim)")
 
-    sep("COMPLETE BRACKET — ALL ROUNDS")
-    print("  R1+R2: chalk  |  S16+: highest sim probability\n")
+    sep("GAME-BY-GAME PICKS — ALL ROUNDS")
+    print(f"  [P]=1v16 protected  *** = upset pick  % = per-game model WP\n")
+    upsets_count = 0
     for region in REGIONS:
-        opt=region_opts[region]; c=chalk[region]
-        champ=opt['regional_champ']; rc=sim['region_counts'][region]
+        opt = region_opts[region]
+        r1w = opt.get('r1_winners', chalk[region]['r1'])
+        r1wp = opt.get('r1_wps',    [w*100 for w in chalk[region]['r1_wp']])
+        r1pr = opt.get('r1_prots',  chalk[region]['r1_prot'])
+        r2w  = opt.get('r2_winners', chalk[region]['r2'])
+        r2wp = opt.get('r2_wps',    [w*100 for w in chalk[region]['r2_wp']])
+        champ = opt['regional_champ']
+        wps   = opt.get('game_wps', {})
         print(f"  ═══ {region.upper()} ═══")
-        for gi,(pick,wp,prot) in enumerate(zip(c['r1'],c['r1_wp'],c['r1_prot'])):
-            tag=' [P]' if prot else ''
-            print(f"  R1: {pick:<26}{wp*100:.0f}%{tag}")
-        for pick,wp in zip(c['r2'],c['r2_wp']):
-            print(f"  R2: {pick:<26}{wp*100:.0f}%")
-        for pick,label in [(opt['s16_top'],'S16'),(opt['s16_bot'],'S16'),
-                           (champ,'E8')]:
-            sp=rc.get(pick,[0]*4)[2 if label=='S16' else 3]/n
-            flag=' ← champ' if pick==champ else ''
-            print(f"  {label}: {pick:<26}{sp*100:.0f}% sim{flag}")
+        for gi, (pick, wp, prot) in enumerate(zip(r1w, r1wp, r1pr)):
+            a, b = bracket[region][gi]
+            # detect upset: winner is the higher seed number
+            sa = teams.get(a, {}).get('seed', 0); sb = teams.get(b, {}).get('seed', 0)
+            chalk_pick = a if sa <= sb else b
+            is_upset = (pick != chalk_pick) and (gi != 0)
+            tag = ' [P]' if prot else (' ***' if is_upset else '')
+            if is_upset: upsets_count += 1
+            print(f"  R1: {pick:<24} {wp*100:.0f}%{tag}" if isinstance(wp, float)
+                  else f"  R1: {pick:<24} {wp:.0f}%{tag}")
+        for pick, wp in zip(r2w, r2wp):
+            print(f"  R2: {pick:<24} {wp*100:.0f}%" if isinstance(wp, float)
+                  else f"  R2: {pick:<24} {wp:.0f}%")
+        s16t, s16b = opt['s16_top'], opt['s16_bot']
+        print(f" S16: {s16t:<24} {wps.get('s16_top',0)*100:.0f}%" +
+              (' ← champ path' if s16t == champ else ''))
+        print(f" S16: {s16b:<24} {wps.get('s16_bot',0)*100:.0f}%" +
+              (' ← champ path' if s16b == champ else ''))
+        print(f"  E8: {champ:<24} {wps.get('e8',0)*100:.0f}%  ← Regional Champion")
         print()
-    ff=ff_opt['ff_picks']; ch=ff_opt['champion']
-    for region,team in ff.items():
-        sp=sim['ff_counts'].get(team,0)/n
-        flag=' ← champion' if team==ch else ''
-        print(f"  FF {region:<10}: {team:<24}{sp*100:.0f}% sim{flag}")
+    ff = ff_opt['ff_picks']; ch = ff_opt['champion']
+    for region, team in ff.items():
+        sp_ff = sim['ff_counts'].get(team, 0)/n
+        flag = ' ← champion' if team == ch else ''
+        print(f"  FF {region:<10}: {team:<22} {sp_ff*100:.0f}% sim{flag}")
     print(f"\n  CHAMPION: {ch}  ({sim['ch_counts'].get(ch,0)/n*100:.1f}% sim)")
+    if upsets_count:
+        print(f"\n  Upsets predicted in R1: {upsets_count}")
 
     ff_done = sum(1 for v in FIRST_FOUR_RESULTS.values() if v)
     if ff_done < 4:
@@ -642,15 +706,16 @@ def main():
     n   = sim['n']
     print(f"  P(perfect R1)    simulated: {sim['perf_r1']/n*100:.4f}%")
 
-    print("\nOptimizing five-bracket pool picks...")
-    region_opts = {r: optimize_region(r,sim,bracket,chalk,teams,n) for r in REGIONS}
+    print("\nBuilding game-by-game bracket picks...")
+    region_opts = {r: optimize_region(r,sim,bracket,chalk,teams,n,beta) for r in REGIONS}
     for r,opt in region_opts.items():
-        print(f"  {r}: {opt['regional_champ']}  (E8 sim {sim['region_counts'][r].get(opt['regional_champ'],[0]*4)[3]/n*100:.1f}%)")
+        wp = opt.get('game_wps',{}).get('e8', 0)
+        print(f"  {r}: {opt['regional_champ']}  (E8 game WP {wp*100:.0f}%)")
 
-    ff_opt = optimize_ff(sim, region_opts, teams, n)
+    ff_opt = optimize_ff(sim, region_opts, teams, n, beta)
     print(f"  Champion: {ff_opt['champion']}")
 
-    print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, PROTECT_1V16)
+    print_summary(sim, chalk, ann, region_opts, ff_opt, bracket, PROTECT_1V16, teams)
 
 if __name__ == '__main__':
     main()

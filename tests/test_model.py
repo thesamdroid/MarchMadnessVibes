@@ -2,7 +2,7 @@
 Tests for march_madness_2026_v4.py — bracket optimizer.
 Pure-function logic tested via model_core; these tests cover
 v4-specific: factors(), predict(), calibrate(), build_chalk(),
-annuity_pv(), chaos_eps(), get_ownership(), simulate() smoke.
+annuity_pv(), chaos_eps(), simulate() smoke.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -13,7 +13,7 @@ from model_core import bayesian_blend, tempered_sig, CORPUS_INJURY_BETA, ROUND_T
 from march_madness_2026_v4 import (
     log_norm, log_rank,
     factors, predict, calibrate, build_chalk,
-    annuity_pv, chaos_eps, get_ownership,
+    annuity_pv, chaos_eps,
 )
 
 # ── Stubs ──────────────────────────────────────────────────────────────────
@@ -133,14 +133,6 @@ class TestAnnuity:
     def test_years_range(self):     assert 30 < annuity_pv(age=37)['years'] < 55
     def test_higher_rate_lower_pv(self):
         assert annuity_pv(rate=0.02)['gross'] > annuity_pv(rate=0.08)['gross']
-
-# ── Ownership ──────────────────────────────────────────────────────────────
-
-class TestOwnership:
-    def test_1seed_high(self):   assert get_ownership('Duke',make_teams()) > 0.90
-    def test_16seed_low(self):   assert get_ownership('Siena',make_teams()) < 0.10
-    def test_bounded(self):
-        for t in make_teams(): assert 0 < get_ownership(t,make_teams()) < 1
 
 # ── Integration ────────────────────────────────────────────────────────────
 
