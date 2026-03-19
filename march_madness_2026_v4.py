@@ -55,11 +55,10 @@ np.random.seed(42)
 # =============================================================================
 
 FIRST_FOUR_RESULTS = {
-    'UMBC_vs_Howard':    'Howard',   # CONFIRMED: Howard 86, UMBC 83
-    'NC_State_vs_Texas': 'Texas',    # CONFIRMED: Texas 68, NC State 66
-    # Fill in Wednesday night:
-    # 'Lehigh_vs_PV':   'Lehigh',   # 6:40 PM ET tonight
-    # 'SMU_vs_MiamiOH': 'SMU',      # 9:15 PM ET tonight
+    'UMBC_vs_Howard':    'Howard',   # FINAL: Howard 86, UMBC 83
+    'NC_State_vs_Texas': 'Texas',    # FINAL: Texas 68, NC State 66 (Tramon Mark buzzer)
+    'Lehigh_vs_PV':      'Pr. View', # FINAL: Prairie View A&M 67, Lehigh 55
+    'SMU_vs_MiamiOH':    'Miami OH',  # FINAL: Miami OH 63, SMU 55
 }
 
 PRIZE_R1R2 = 19_800_000
